@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MousePulse/MousePulse.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MousePulse.IntegrationHarness/MousePulse.IntegrationHarness.csproj" />
+    <Project Path="tests/MousePulse.Tests/MousePulse.Tests.csproj" />
+  </Folder>
+</Solution>

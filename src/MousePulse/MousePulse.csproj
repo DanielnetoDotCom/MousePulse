@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>MousePulse</RootNamespace>
+    <AssemblyName>MousePulse</AssemblyName>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!-- Windows Forms application bootstrap (ApplicationConfiguration.Initialize) -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationVisualStyles>true</ApplicationVisualStyles>
+    <ApplicationUseCompatibleTextRendering>false</ApplicationUseCompatibleTextRendering>
+    <ApplicationDefaultFont>Segoe UI, 9pt</ApplicationDefaultFont>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Resources\MousePulse.ico</ApplicationIcon>
+
+    <!-- Version resource: honest, complete metadata helps reputation-based AV engines. -->
+    <Version>1.0.0</Version>
+    <Product>MousePulse</Product>
+    <AssemblyTitle>MousePulse - idle-aware mouse activity simulator</AssemblyTitle>
+    <Description>Simulates tiny mouse movements with SendInput only while the user is inactive.</Description>
+    <Company>MousePulse</Company>
+    <Copyright>Copyright (c) 2026</Copyright>
+    <NeutralLanguage>en-US</NeutralLanguage>
+
+    <!-- Footprint: no ICU, English-only resources, no background GC thread. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <TieredPGO>true</TieredPGO>
+    <UseSystemResourceKeys>false</UseSystemResourceKeys>
+  </PropertyGroup>
+
+  <!-- Release publishing: self-contained, single-file, x64. Trimming is not supported by Windows Forms. -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- Compression is left off on purpose: compressed (high-entropy) bundles look "packed" to some AV heuristics. -->
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\MousePulse.ico" LogicalName="MousePulse.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="MousePulse.Tests" />
+  </ItemGroup>
+
+</Project>
