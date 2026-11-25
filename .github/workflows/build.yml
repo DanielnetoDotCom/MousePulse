@@ -57,7 +57,7 @@ jobs:
           "$hash  MousePulse.exe" | Out-File dist/MousePulse.exe.sha256 -Encoding ascii
           Write-Host "SHA-256: $hash"
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: MousePulse-${{ steps.version.outputs.version }}
           path: |
