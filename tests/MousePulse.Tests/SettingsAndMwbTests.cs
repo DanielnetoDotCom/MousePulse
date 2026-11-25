@@ -30,9 +30,11 @@ public class SettingsTests : IDisposable
             StartSimulationOnLaunch = true,
             MinimizeToTray = false,
             CloseToTray = false,
+            VaryMovement = false,
         });
 
         AppSettings loaded = store.Load();
+        Assert.False(loaded.VaryMovement);
         Assert.Equal(120, loaded.InactivityThresholdSeconds);
         Assert.Equal(45, loaded.MoveIntervalSeconds);
         Assert.Equal(0, loaded.MoveDistancePixels);
@@ -81,6 +83,7 @@ public class SettingsTests : IDisposable
     {
         var store = new SettingsStore(Path.Combine(_dir, "settings.json"));
         Assert.Equal(AppLimits.DefaultThresholdSeconds, store.Load().InactivityThresholdSeconds);
+        Assert.True(store.Load().VaryMovement);
 
         Directory.CreateDirectory(_dir);
         File.WriteAllText(store.FilePath, "{ this is not json");

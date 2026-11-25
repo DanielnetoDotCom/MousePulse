@@ -40,6 +40,7 @@ internal sealed class MainForm : Form
     private readonly NumericUpDown _thresholdInput = new();
     private readonly NumericUpDown _intervalInput = new();
     private readonly NumericUpDown _distanceInput = new();
+    private readonly CheckBox _varyCheck = new();
     private readonly Label _settingsHint = new();
 
     // Application card
@@ -325,6 +326,10 @@ internal sealed class MainForm : Form
         AddRow(grid, "Move distance", NumberWithUnit(_distanceInput, AppLimits.MinDistance, AppLimits.MaxDistance, "px (0 = invisible)"));
         body.Controls.Add(grid);
 
+        ConfigureCheck(_varyCheck, "Vary timing, distance and path (more natural)");
+        _varyCheck.Margin = new Padding(0, 6, 0, 0);
+        body.Controls.Add(_varyCheck);
+
         ConfigureWrapped(_settingsHint, ColumnWidth - 40);
         _settingsHint.Margin = new Padding(0, 6, 0, 0);
         body.Controls.Add(_settingsHint);
@@ -332,6 +337,7 @@ internal sealed class MainForm : Form
         _thresholdInput.ValueChanged += (_, _) => OnSettingsEdited();
         _intervalInput.ValueChanged += (_, _) => OnSettingsEdited();
         _distanceInput.ValueChanged += (_, _) => OnSettingsEdited();
+        _varyCheck.CheckedChanged += (_, _) => OnSettingsEdited();
         return Card("Simulation", body);
     }
 
@@ -584,6 +590,7 @@ internal sealed class MainForm : Form
             _thresholdInput.Value = _settings.InactivityThresholdSeconds;
             _intervalInput.Value = _settings.MoveIntervalSeconds;
             _distanceInput.Value = _settings.MoveDistancePixels;
+            _varyCheck.Checked = _settings.VaryMovement;
             _startupCheck.Checked = _settings.StartWithWindows;
             _autoStartCheck.Checked = _settings.StartSimulationOnLaunch;
             _minimizeCheck.Checked = _settings.MinimizeToTray;
@@ -611,6 +618,7 @@ internal sealed class MainForm : Form
         _engine.InactivityThreshold = TimeSpan.FromSeconds(_settings.InactivityThresholdSeconds);
         _engine.MoveInterval = TimeSpan.FromSeconds(_settings.MoveIntervalSeconds);
         _engine.MoveDistance = _settings.MoveDistancePixels;
+        _engine.VaryMovement = _settings.VaryMovement;
     }
 
     private void OnSettingsEdited()
@@ -623,6 +631,7 @@ internal sealed class MainForm : Form
         _settings.InactivityThresholdSeconds = (int)_thresholdInput.Value;
         _settings.MoveIntervalSeconds = (int)_intervalInput.Value;
         _settings.MoveDistancePixels = (int)_distanceInput.Value;
+        _settings.VaryMovement = _varyCheck.Checked;
         ApplySettingsToEngine();
         _store.Save(_settings);
         UpdateEnvironmentUi();
@@ -968,9 +977,22 @@ internal sealed class MainForm : Form
             }
         }
 
-        hints.Add(_settings.MoveDistancePixels == 0
-            ? "A 0 px move is an input event without visible pointer motion."
-            : $"Each move shifts the pointer {_settings.MoveDistancePixels} px toward the screen centre and straight back.");
+        int distancePx = _settings.MoveDistancePixels;
+        if (distancePx == 0)
+        {
+            hints.Add("A 0 px move is an input event without visible pointer motion.");
+        }
+        else if (_settings.VaryMovement)
+        {
+            int minInterval = (int)Math.Ceiling(interval * ActivityEngine.MinVariation);
+            int minDistance = distancePx == 1 ? 1 : (int)Math.Ceiling(distancePx * ActivityEngine.MinVariation);
+            string distance = minDistance == distancePx ? $"{distancePx} px" : $"{minDistance}\u2013{distancePx} px";
+            hints.Add($"Moves come every {minInterval}\u2013{interval} s and travel {distance} in a random direction toward the screen centre, in small steps, then return.");
+        }
+        else
+        {
+            hints.Add($"Each move shifts the pointer {distancePx} px toward the screen centre and straight back.");
+        }
         SetText(_settingsHint, string.Join(" ", hints));
 
         // Mouse Without Borders

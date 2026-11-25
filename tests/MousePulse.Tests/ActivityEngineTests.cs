@@ -4,10 +4,10 @@ namespace MousePulse.Tests;
 
 public class ActivityEngineTests
 {
-    private static (ActivityEngine Engine, FakeSystemInput Input) Create(int threshold = 60, int interval = 30, uint start = 1_000_000)
+    private static (ActivityEngine Engine, FakeSystemInput Input) Create(int threshold = 60, int interval = 30, uint start = 1_000_000, int seed = 1)
     {
         var input = new FakeSystemInput(start);
-        var engine = new ActivityEngine(input, () => new DateTime(2026, 1, 1, 12, 0, 0))
+        var engine = new ActivityEngine(input, () => new DateTime(2026, 1, 1, 12, 0, 0), new Random(seed))
         {
             InactivityThreshold = TimeSpan.FromSeconds(threshold),
             MoveInterval = TimeSpan.FromSeconds(interval),
@@ -223,6 +223,68 @@ public class ActivityEngineTests
         Assert.Equal(TimeSpan.FromSeconds(21), s.UserIdle);
         Assert.True(s.LastNudgeRegistered);
     }
+
+    [Fact]
+    public void Fixed_mode_sends_the_exact_distance_at_the_exact_interval()
+    {
+        var (engine, input) = Create(threshold: 60, interval: 30);
+        engine.MoveDistance = 10;
+        engine.Start();
+        Run(engine, input, 600);
+
+        Assert.All(input.Nudges, d => Assert.Equal(10, d));
+        Assert.All(input.NudgeNatural, Assert.False);
+        Assert.All(Gaps(input), g => Assert.Equal(30, g));
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void Varied_mode_randomizes_interval_and_distance_within_the_settings(int seed)
+    {
+        var (engine, input) = Create(threshold: 60, interval: 30, seed: seed);
+        engine.MoveDistance = 10;
+        engine.VaryMovement = true;
+        engine.Start();
+        Run(engine, input, 1800);
+
+        Assert.True(input.Nudges.Count > 60);                    // ~1 per 22.5 s on average
+        Assert.All(input.Nudges, d => Assert.InRange(d, 5, 10));
+        Assert.True(input.Nudges.Distinct().Count() > 1);
+        Assert.All(input.NudgeNatural, Assert.True);
+
+        int[] gaps = Gaps(input);
+        Assert.All(gaps, g => Assert.InRange(g, 15, 30));       // never longer than "Move every"
+        Assert.True(gaps.Distinct().Count() > 3);
+    }
+
+    [Fact]
+    public void Varied_mode_keeps_one_pixel_moves_at_one_pixel()
+    {
+        var (engine, input) = Create(threshold: 60, interval: 30);
+        engine.VaryMovement = true;
+        engine.Start();
+        Run(engine, input, 600);
+
+        Assert.All(input.Nudges, d => Assert.Equal(1, d));
+    }
+
+    [Fact]
+    public void Varied_mode_reports_a_next_move_within_the_interval()
+    {
+        var (engine, input) = Create(threshold: 60, interval: 30);
+        engine.VaryMovement = true;
+        engine.Start();
+        EngineSnapshot s = Run(engine, input, 60);
+
+        Assert.True(s.NudgedThisTick);
+        Assert.InRange(s.NextNudgeIn!.Value, TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(30));
+    }
+
+    /// <summary>Seconds between consecutive nudges.</summary>
+    private static int[] Gaps(FakeSystemInput input) =>
+        input.NudgeTicks.Zip(input.NudgeTicks.Skip(1), (a, b) => (int)((b - a) / 1000)).ToArray();
 
     [Fact]
     public void Settings_changes_apply_immediately()

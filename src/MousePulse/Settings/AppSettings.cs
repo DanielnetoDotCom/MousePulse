@@ -9,6 +9,9 @@ public sealed class AppSettings
     public int MoveIntervalSeconds { get; set; } = AppLimits.DefaultIntervalSeconds;
     public int MoveDistancePixels { get; set; } = AppLimits.DefaultDistance;
 
+    /// <summary>Randomize the wait, distance and path of each move (see ActivityEngine.VaryMovement).</summary>
+    public bool VaryMovement { get; set; } = true;
+
     public bool StartWithWindows { get; set; }
     public bool StartSimulationOnLaunch { get; set; }
     public bool MinimizeToTray { get; set; } = true;

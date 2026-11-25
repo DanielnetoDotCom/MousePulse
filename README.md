@@ -23,7 +23,14 @@ from going idle. It makes tiny simulated mouse moves, **only while you are away*
    | Move every | Interval between moves while you stay idle. | 30 s |
    | Move distance | Pixels per move (0–50). The pointer goes toward the screen centre and straight back. **0** sends a zero-length move: still an input event for Windows, but nothing visibly moves. | 1 px |
 
-3. Press **Start**. Use **Test move** to send a single move right away.
+3. Leave **Vary timing, distance and path** on (the default) for less regular movement:
+   - each wait is a random 50–100 % of *Move every*, so the setting is the longest gap, never exceeded;
+   - each move travels a random 50–100 % of *Move distance*;
+   - the direction is random, but always toward the screen centre (never toward an edge, which matters for Mouse Without Borders);
+   - the pointer glides out and back in 1–4 small eased steps, a few milliseconds apart, and ends on the pixel where it started.
+
+   Turn it off for the fixed pattern: exactly *Move every*, exactly *Move distance*, diagonally toward the centre and straight back.
+4. Press **Start**. Use **Test move** to send a single move right away.
 
 The **Activity** card shows two idle times:
 
@@ -148,6 +155,7 @@ Real-machine integration check (it really moves the pointer by a few pixels, and
 
 ```powershell
 dotnet run --project tests\MousePulse.IntegrationHarness -- --engine-seconds 40
+dotnet run --project tests\MousePulse.IntegrationHarness -- --natural-only   # only the varied-path checks
 ```
 
 ## Project layout

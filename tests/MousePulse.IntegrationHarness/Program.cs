@@ -1,11 +1,12 @@
 // Manual integration harness: exercises the real Win32 input path on the current machine.
-// Usage: dotnet run --project tests/MousePulse.IntegrationHarness [-- --engine-seconds N]
+// Usage: dotnet run --project tests/MousePulse.IntegrationHarness [-- --engine-seconds N | --natural-only]
 // It moves the pointer by a few pixels (and back) - do not run it on a machine someone else is using.
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using MousePulse.Core;
 
 int engineSeconds = args.Length >= 2 && args[0] == "--engine-seconds" ? int.Parse(args[1]) : 20;
+bool naturalOnly = args.Contains("--natural-only");
 var input = new Win32SystemInput();
 
 [DllImport("user32.dll")] static extern bool GetCursorPos(out POINT p);
@@ -16,9 +17,12 @@ SystemParametersInfo(0x0003 /* SPI_GETMOUSE */, 0, mouse, 0);
 Console.WriteLine($"Machine: {Environment.MachineName}; Enhance pointer precision: {(mouse[2] != 0 ? "ON" : "off")}; thresholds {mouse[0]}/{mouse[1]}");
 Console.WriteLine($"Screens: {string.Join(" | ", Screen.AllScreens.Select(s => $"{s.DeviceName} {s.Bounds}"))}");
 
+int failures = 0;
+
+if (!naturalOnly)
+{
 Console.WriteLine();
 Console.WriteLine("== 1. SendInput resets GetLastInputInfo; pointer returns to origin ==");
-int failures = 0;
 foreach (int distance in new[] { 0, 1, 3, 10 })
 {
     for (int attempt = 0; attempt < 3; attempt++)
@@ -109,6 +113,62 @@ Console.WriteLine("== 1b. Cumulative drift over 40 consecutive 1 px moves ==");
     Console.WriteLine(interrupted
         ? "  interrupted by real input - not evaluated"
         : $"  start {start.X},{start.Y} end {end.X},{end.Y} drift={(noDrift ? "none" : "YES")} (acceleration corrections applied: {corrections}/40)");
+}
+
+}
+
+Console.WriteLine();
+Console.WriteLine("== 1c. Natural (stepped, paced) paths: registered, back on the origin pixel ==");
+foreach (int distance in new[] { 1, 3, 10, 25 })
+{
+    for (int attempt = 0; attempt < 3; attempt++)
+    {
+        var wait = Stopwatch.StartNew();
+        while (unchecked((int)(input.TickCount - input.LastInputTick)) < 1500)
+        {
+            if (wait.Elapsed > TimeSpan.FromMinutes(3))
+            {
+                Console.WriteLine("  (user kept using the PC for 3 min - skipping)");
+                return 2;
+            }
+
+            Thread.Sleep(100);
+        }
+
+        GetCursorPos(out POINT before);
+        uint tickBefore = input.TickCount;
+        var sw = Stopwatch.StartNew();
+        NudgeResult result = input.Nudge(distance, natural: true);
+        long sendMs = sw.ElapsedMilliseconds;
+        Thread.Sleep(300);
+        uint lii = input.LastInputTick;
+        GetCursorPos(out POINT after);
+        int liiDelta = unchecked((int)(lii - tickBefore));
+        if (liiDelta > sendMs + 60)
+        {
+            Console.WriteLine($"  distance={distance}: real input arrived during the measurement - retrying");
+            attempt--;
+            continue;
+        }
+
+        bool registered = liiDelta >= 0;
+        bool returned = result.EdgeSafe || (before.X == after.X && before.Y == after.Y);
+        if (!result.Sent || !registered || !returned || liiDelta > ActivityEngine.OwnInputWindowMs)
+        {
+            failures++;
+        }
+
+        Console.WriteLine(
+            $"distance={distance,2} sent={result.Sent} events={result.EventCount} took={sendMs} ms corrected={result.Corrected} " +
+            $"registered={registered} (lii-tickBefore={liiDelta} ms) pos {before.X},{before.Y} -> {after.X},{after.Y} returned={returned}");
+    }
+}
+
+if (naturalOnly)
+{
+    Console.WriteLine();
+    Console.WriteLine(failures == 0 ? "RESULT: PASS" : $"RESULT: {failures} FAILURE(S)");
+    return failures == 0 ? 0 : 1;
 }
 
 Console.WriteLine();

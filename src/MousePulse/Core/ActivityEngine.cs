@@ -46,24 +46,40 @@ public sealed class ActivityEngine
     /// <summary>Tolerance for tick granularity (GetTickCount resolution is ~15.6 ms).</summary>
     private const int TickSlackMs = 32;
 
+    /// <summary>With <see cref="VaryMovement"/>, waits and distances are a random share of the setting from this value to 1.</summary>
+    public const double MinVariation = 0.5;
+
     private readonly ISystemInput _input;
     private readonly Func<DateTime> _clock;
+    private readonly Random _random;
+    private double _intervalFactor = 1;
 
     private uint _lastSeenInputTick;
     private uint _lastUserInputTick;
     private uint? _lastNudgeTick;
     private bool _awaitingRegistration;
 
-    public ActivityEngine(ISystemInput input, Func<DateTime>? clock = null)
+    public ActivityEngine(ISystemInput input, Func<DateTime>? clock = null, Random? random = null)
     {
         _input = input;
         _clock = clock ?? (() => DateTime.Now);
+        _random = random ?? Random.Shared;
         Resync();
     }
 
     public TimeSpan InactivityThreshold { get; set; } = TimeSpan.FromSeconds(AppLimits.DefaultThresholdSeconds);
     public TimeSpan MoveInterval { get; set; } = TimeSpan.FromSeconds(AppLimits.DefaultIntervalSeconds);
     public int MoveDistance { get; set; } = AppLimits.DefaultDistance;
+
+    /// <summary>
+    /// Makes the simulation less regular: each wait is a random 50-100 % of <see cref="MoveInterval"/>, each
+    /// move a random 50-100 % of <see cref="MoveDistance"/> with a random, stepped path. The settings remain
+    /// upper bounds, so screen saver and Mouse Without Borders timing guarantees still hold.
+    /// </summary>
+    public bool VaryMovement { get; set; }
+
+    /// <summary>Wait between the last nudge and the next one.</summary>
+    private TimeSpan CurrentInterval => VaryMovement ? MoveInterval * _intervalFactor : MoveInterval;
 
     public bool IsRunning { get; private set; }
     public bool SessionLocked { get; set; }
@@ -125,7 +141,7 @@ public sealed class ActivityEngine
                 nudged = true;
             }
 
-            next = MoveInterval - Elapsed(_input.TickCount, _lastNudgeTick!.Value);
+            next = CurrentInterval - Elapsed(_input.TickCount, _lastNudgeTick!.Value);
             if (next < TimeSpan.Zero)
             {
                 next = TimeSpan.Zero;
@@ -171,12 +187,19 @@ public sealed class ActivityEngine
             return true;
         }
 
-        return Elapsed(now, lastNudge) >= MoveInterval;
+        return Elapsed(now, lastNudge) >= CurrentInterval;
     }
 
     private void NudgeCore(uint now)
     {
-        NudgeResult result = _input.Nudge(MoveDistance);
+        int distance = MoveDistance;
+        if (VaryMovement && distance > 1)
+        {
+            distance = _random.Next((int)Math.Ceiling(distance * MinVariation), distance + 1);
+        }
+
+        NudgeResult result = _input.Nudge(distance, VaryMovement);
+        _intervalFactor = MinVariation + _random.NextDouble() * (1 - MinVariation);
         _lastNudgeTick = now;
         LastNudgeAt = _clock();
         NudgeCount++;

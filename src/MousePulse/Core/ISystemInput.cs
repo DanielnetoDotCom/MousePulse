@@ -13,7 +13,9 @@ public interface ISystemInput
     uint LastInputTick { get; }
 
     /// <summary>Injects a tiny mouse movement (SendInput).</summary>
-    NudgeResult Nudge(int distance);
+    /// <param name="distance">Length of the move in pixels.</param>
+    /// <param name="natural">Random heading and a stepped, paced path instead of a fixed diagonal.</param>
+    NudgeResult Nudge(int distance, bool natural = false);
 }
 
 /// <param name="Sent">True when SendInput accepted every event.</param>

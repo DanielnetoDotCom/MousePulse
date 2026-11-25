@@ -22,9 +22,17 @@ internal sealed class FakeSystemInput : ISystemInput
 
     public List<int> Nudges { get; } = [];
 
-    public NudgeResult Nudge(int distance)
+    /// <summary>Tick at which each nudge was sent (parallel to <see cref="Nudges"/>).</summary>
+    public List<uint> NudgeTicks { get; } = [];
+
+    /// <summary>The "natural" flag passed with each nudge (parallel to <see cref="Nudges"/>).</summary>
+    public List<bool> NudgeNatural { get; } = [];
+
+    public NudgeResult Nudge(int distance, bool natural = false)
     {
         Nudges.Add(distance);
+        NudgeTicks.Add(TickCount);
+        NudgeNatural.Add(natural);
         if (SendInputSucceeds && InjectionRegisters)
         {
             LastInputTick = TickCount;
