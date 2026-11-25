@@ -145,7 +145,7 @@ The output is a self-contained, single-file `MousePulse.exe` of about 100 MB. It
 
 [.github/workflows/build.yml](.github/workflows/build.yml) runs on GitHub Actions (`windows-latest`):
 
-- **Every push to `main`:** runs the tests, publishes `MousePulse.exe`, and creates a GitHub Release `vX.Y.N` with the exe and its SHA-256 attached.
+- **Every push to `main`:** runs the tests, publishes `MousePulse.exe`, and creates a GitHub Release `vX.Y.N` with `MousePulse-X.Y.N.exe` and its SHA-256 attached. Only the file name carries the version; a local build is still `dist\MousePulse.exe`. Renaming is safe: *Start with Windows* re-points its registry entry to whichever exe is running.
 - **Pull requests:** tests and build only. The exe is available as a workflow artifact; no release is created.
 - **Version:** `X.Y` comes from `<Version>` in `src/MousePulse/MousePulse.csproj`; `N` is the workflow run number, so it goes up automatically. To start a new major/minor line, change `<Version>` (for example to `1.1.0`).
 

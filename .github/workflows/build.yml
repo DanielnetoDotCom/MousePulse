@@ -50,19 +50,24 @@ jobs:
       - name: Publish
         run: dotnet publish src/MousePulse/MousePulse.csproj -c Release -r win-x64 -o dist -p:Version=${{ steps.version.outputs.version }}
 
-      - name: Checksum
+      # The file name carries the version (MousePulse-1.0.4.exe); the assembly name stays MousePulse.
+      - name: Rename and checksum
+        id: exe
         shell: pwsh
         run: |
-          $hash = (Get-FileHash dist/MousePulse.exe -Algorithm SHA256).Hash
-          "$hash  MousePulse.exe" | Out-File dist/MousePulse.exe.sha256 -Encoding ascii
-          Write-Host "SHA-256: $hash"
+          $name = "MousePulse-${{ steps.version.outputs.version }}.exe"
+          Rename-Item dist/MousePulse.exe $name
+          $hash = (Get-FileHash "dist/$name" -Algorithm SHA256).Hash
+          "$hash  $name" | Out-File "dist/$name.sha256" -Encoding ascii
+          "name=$name" >> $env:GITHUB_OUTPUT
+          Write-Host "$name SHA-256: $hash"
 
       - uses: actions/upload-artifact@v6
         with:
           name: MousePulse-${{ steps.version.outputs.version }}
           path: |
-            dist/MousePulse.exe
-            dist/MousePulse.exe.sha256
+            dist/${{ steps.exe.outputs.name }}
+            dist/${{ steps.exe.outputs.name }}.sha256
 
       - name: Create GitHub release
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
@@ -71,7 +76,8 @@ jobs:
         shell: pwsh
         run: |
           $v = "${{ steps.version.outputs.version }}"
-          gh release create "v$v" dist/MousePulse.exe dist/MousePulse.exe.sha256 `
+          $exe = "dist/${{ steps.exe.outputs.name }}"
+          gh release create "v$v" $exe "$exe.sha256" `
             --target "${{ github.sha }}" `
             --title "MousePulse $v" `
             --generate-notes
